@@ -41,6 +41,25 @@ typedef struct
 
 typedef struct
 {
+    int rear;
+    int front;
+    s32 storageSize;
+    Stone *storage;
+} StoneQueue;
+
+inline Stone
+make_stone(int x, int y, int player)
+{
+    Stone stone =
+    {
+        x, y, player
+    };
+    
+    return stone;
+}
+
+typedef struct
+{
     s32 x;
     s32 y;
     s32 player;
@@ -82,8 +101,8 @@ typedef struct
 
 typedef struct
 {
-    RenderGroup *layer1;
-    RenderGroup *layer2;
+    SpriteGroup *layer1;
+    SpriteGroup *layer2;
     
     Sprite font;
     Sprite white;
@@ -98,6 +117,9 @@ typedef struct
     
     LibertyGroup libGroups[4];
     s32 libGroupIndex;
+    
+    float point;
+    float pointVel;
     
 } Editor;
 

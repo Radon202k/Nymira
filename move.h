@@ -12,6 +12,20 @@ move_compare(Move a, Move b)
     return false;
 }
 
+#define maxf(a,b) ((a)>=(b))?(a):(b)
+
+function s32
+move_tree_height(MoveNode *node, s32 height)
+{
+    if (node == NULL) return height;
+    
+    s32 childH = move_tree_height(node->firstChild, height+1);
+    s32 rightH = move_tree_height(node->rightSibling, height+1);
+    
+    return maxf(childH, rightH);
+}
+
+
 // Find a move in the tree if it exists
 // Performs depth-first search
 function MoveNode *
@@ -155,7 +169,7 @@ move_place(MoveTree *tree, u32 x, u32 y, u32 player)
 }
 
 // Depth-first traversal to draw the tree
-function void 
+function void
 move_tree_draw_diagram(MoveTree *tree, MoveNode *root, Vector2 origin)
 {
     if (root == 0) return;
@@ -167,14 +181,18 @@ move_tree_draw_diagram(MoveTree *tree, MoveNode *root, Vector2 origin)
     }
     
     // Draw it
-    draw_rect(editor.layer1, editor.white, origin, v2(40,40),
+    draw_rect(editor.layer1, editor.white, 
+              v2_add(origin, v2(0,-40)), v2(40,40),
               color, 0);
     
-    
     Vector2i value = {root->data.x, root->data.y};
-    draw_label_v2i(editor.layer2, editor.font, value, v2(origin.x, origin.y + 30), 
+    draw_label_v2i(editor.layer2, editor.font, value, 
+                   v2(origin.x, origin.y), 
                    10, rgba(1,0,0,0.5f), 1, false);
     
-    move_tree_draw_diagram(tree, root->firstChild, v2(origin.x,origin.y-50));
-    move_tree_draw_diagram(tree, root->rightSibling, v2(origin.x+50,origin.y));
+    move_tree_draw_diagram(tree, root->firstChild, 
+                           v2(origin.x,origin.y-50));
+    
+    move_tree_draw_diagram(tree, root->rightSibling, 
+                           v2(origin.x+50,origin.y));
 }

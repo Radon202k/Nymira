@@ -11,6 +11,6 @@ editor_render_init()
     editor.stoneWhite = sprite_create("images/stone_white.png");
     
     // Create render groups with different sorting layers
-    editor.layer1 = render_group_push_layer(1);
-    editor.layer2 = render_group_push_layer(2);
+    editor.layer1 = sprite_group_push_layer(1);
+    editor.layer2 = sprite_group_push_layer(2);
 }
