@@ -101,19 +101,24 @@ typedef struct
 
 typedef struct
 {
-    SpriteGroup *layer1;
-    SpriteGroup *layer2;
+    XRenderBatch layer1;
+    XRenderBatch layer2;
     
-    Sprite font;
-    Sprite white;
-    Sprite naruto;
-    Sprite stoneBlack;
-    Sprite stoneWhite;
+    // Sound stoneHit0;
+    
+    XSprite debugFont;
+    
+    XSprite white;
+    XSprite naruto;
+    XSprite stoneBlack;
+    XSprite stoneWhite;
+    
+    XFont font32;
     
     Board *currentBoard;
     
     bool closestPosActive;
-    Vector2i closestBoardPoint;
+    v2i closestBoardPoint;
     
     LibertyGroup libGroups[4];
     s32 libGroupIndex;
@@ -121,20 +126,9 @@ typedef struct
     float point;
     float pointVel;
     
+    float contentY;
+    float contentH;
+    float nodeY;
+    
+    
 } Editor;
-
-#define alloc_size(size) _safe_alloc(size)
-#define alloc_type(type) (type *)_safe_alloc(sizeof(type))
-#define alloc_array(count, type) (type *)_safe_alloc(count*sizeof(type))
-
-function void *_safe_alloc(u32 size)
-{
-    // Allocate it
-    void *result = malloc(size);
-    
-    // Clear it to zero
-    memset(result, 0, size);
-    
-    // Return the pointer
-    return result;
-}

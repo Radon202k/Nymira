@@ -12,7 +12,7 @@ stone_queue_new(u32 size)
 {
     StoneQueue result = {0};
     result.storageSize = size;
-    result.storage = alloc_array(size, Stone);
+    result.storage = xnalloc(size, Stone);
     result.rear = -1;
     result.front = -1;
     return result;

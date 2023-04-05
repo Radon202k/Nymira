@@ -7,33 +7,47 @@ function void input()
     // Gets the stones of the board constructed by going from
     // the tree root to the point
     s32 maxStoneCount = board->lineCount*board->lineCount;
-    Stone *stones = alloc_array(maxStoneCount, Stone);
+    Stone *stones = xnalloc(maxStoneCount, Stone);
     board_get_stones(board, stones);
-    
+    bool moveTree = false;
     // Handle arrow navigation
-    if (engine.key.up.pressed)
+    if (xwin.key.up.pressed)
     {
         move_up(&board->tree);
         board->currentPlayer = !board->currentPlayer;
+        moveTree = true;
     }
-    else if (engine.key.left.pressed)
+    else if (xwin.key.left.pressed)
     {
         move_left(&board->tree);
     }
-    else if (engine.key.down.pressed)
+    else if (xwin.key.down.pressed)
     {
         move_down(&board->tree);
         board->currentPlayer = !board->currentPlayer;
+        moveTree = true;
     }
-    else if (engine.key.right.pressed)
+    else if (xwin.key.right.pressed)
     {
         move_right(&board->tree);
     }
     
+    if (moveTree)
+    {
+        float bbH = xd11.back_buffer_size.y;
+        float bot = editor.contentY - (editor.contentH - bbH);
+        
+        float desiredPoint = 1 - (editor.nodeY / editor.contentY);
+        
+        float dist = desiredPoint - editor.point;
+        
+        editor.pointVel += dist;
+    }
+    
     // Handle mouse input
     
-    Vector2 boardSize = board_size(board);
-    Vector2 origin = board_origin(board, boardSize);
+    v2f boardSize = board_size(board);
+    v2f origin = board_origin(board, boardSize);
     // If the mouse is close enough to a valid move position
     bool foundClosesPos = board_closest_pos(origin, 
                                             &editor.closestBoardPoint.x, 
@@ -41,7 +55,7 @@ function void input()
     if (foundClosesPos)
     {
         // If the mouse left button is pressed
-        if (engine.mouse.left.pressed)
+        if (xwin.mouse.left.pressed)
         {
             // Check if there is a stone in that position already
             Stone *stone = board_get_stone(board, stones, 
@@ -85,7 +99,7 @@ function void input()
                     
                     // Get all connected stones from the same player
                     // to this touching enemy stone
-                    Stone *connectedEnemies = alloc_array(maxStoneCount, Stone);
+                    Stone *connectedEnemies = xnalloc(maxStoneCount, Stone);
                     s32 connectedEnemyCount = 0;
                     board_find_connected_stones(board, stones,
                                                 connectedEnemies, &connectedEnemyCount, 
@@ -93,7 +107,7 @@ function void input()
                                                 touchingStone->player);
                     
                     s32 maxLibertyCount = 4 + connectedEnemyCount*4;
-                    Stone *liberties = alloc_array(maxLibertyCount, Stone);
+                    Stone *liberties = xnalloc(maxLibertyCount, Stone);
                     
                     s32 groupLibertyCount = 0;
                     
@@ -148,10 +162,10 @@ function void input()
                         memcpy(group->array, liberties, groupLibertyCount*sizeof(Stone));
                     }
                     
-                    free(liberties);
+                    xfree(liberties);
                     
                     // Free connected enemies array
-                    free(connectedEnemies);
+                    xfree(connectedEnemies);
                 }
             }
             
@@ -167,5 +181,5 @@ function void input()
     }
     
     // Free stones array
-    free(stones);
+    xfree(stones);
 }

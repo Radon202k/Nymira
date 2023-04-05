@@ -4,11 +4,11 @@
 #define SPRITE_ATLAS_SIZE 1024
 #define BACKBUFFER_WIDTH 800
 #define BACKBUFFER_HEIGHT 600
-#define WINDOW_TITLE "Nymira"
+#define WINDOW_TITLE L"Nymira"
 #define CLEAR_COLOR rgba(.9f,.9f,.9f,1)
 
-#include "C:\Users\Kaeshi\Desktop\c\Runeforma\engine2d.h"
-#include "C:\Users\Kaeshi\Desktop\c\Runeforma\render.h"
+#include "w:\libs\xlibs\xd3d11.h"
+#include "w:\libs\xlibs\xrender2d.h"
 
 #include "data.h"
 
@@ -25,7 +25,6 @@ typedef struct StoneListNode
 {
     Stone data;
     struct StoneListNode *next;
-    
 } StoneListNode;
 
 typedef struct
@@ -34,33 +33,21 @@ typedef struct
     
 } StoneList;
 
-function float
-safe_divide(float a, float b)
+f32 map_range_to_range(f32 range1_min, f32 range1_max,
+                       f32 point,
+                       f32 range2_min, f32 range2_max)
 {
-    assert(b != 0);
-    float result = 0;
-    
-    if (b != 0)
-    {
-        result = a / b;
-    }
-    
-    return result;
-}
-
-function float
-map_range_to_range(float a1, float a2, float s,
-                   float b1, float b2)
-{
-    float t = (b1+(s-a1)*safe_divide((b2-b1),(a2-a1)));
-    return t;
+    f32 ratio = (point - range1_min) / (range1_max - range1_min);
+    f32 mapped_value = ratio * (range2_max - range2_min) + range2_min;
+    return mapped_value;
 }
 
 function float
 point_to_thumb_y(float barH, float thumbH, float point) // [0,1]
 {
-    return map_range_to_range(0,1,point,
-                              barH-thumbH,0);
+    return map_range_to_range(0,1,            // range 1
+                              point,          // value
+                              barH-thumbH,0); // range 2
 }
 
 function float
@@ -81,7 +68,7 @@ function bool
 stone_list_push(StoneList *list, Stone data)
 {
     // TODO: Use a pool of available nodes
-    StoneListNode *node = alloc_type(StoneListNode);
+    StoneListNode *node = xalloc(sizeof *node);
     node->data = data;
     
     node->next = list->start;
@@ -89,7 +76,7 @@ stone_list_push(StoneList *list, Stone data)
     return true;
 }
 
-function void init()
+function void initialize()
 {
     // Init the editor renderer
     editor_render_init();
@@ -101,11 +88,35 @@ function void init()
     board->lineCount = 9;
     board->lineSpace = 50;
     
+    /*
+    // audio
+     editor.stoneHit0 = load_wav(L"sounds/stone0.wav", L"Stone Hit 0");
+    
+     dsbdesc.lpwfxFormat = &waveFormat;
+    
+    // Play the wave file
+     IDirectSoundBuffer_Play(editor.audioBuffer, 0, 0, DSBPLAY_LOOPING);
+    
+    // Wait until the sound is done playing
+    DWORD status;
+    while (IDirectSoundBuffer_GetStatus(editor.audioBuffer, &status) & DSBSTATUS_PLAYING)
+    {
+        Sleep(100);
+    }
+    
+    // Clean up
+    IDirectSoundBuffer_Release(editor.audioBuffer);
+    IDirectSound8_Release(editor.dsound);
+    //
+    */
+    
     StoneQueue test = stone_queue_new(10);
     stone_queue_push(&test, make_stone(0, 0, 1));
     Stone a;
     stone_queue_pop(&test, &a);
     stone_queue_free(&test);
+    
+    editor.point = 1;
     
     move_place(&board->tree, 0, 0, 1);
     move_place(&board->tree, 1, 0, 2);
@@ -138,108 +149,137 @@ function void init()
     move_place(&board->tree, 8, 2, 1);
 }
 
-function void update()
+XWINMAIN()
 {
-    // Get the currently selected board
-    Board *board = editor.currentBoard;
+    initialize();
     
-    // Handle the user input
-    input();
-    
-    float treeOriginY = 0;
-    
-    float barX = 0;
-    float barY = engine.backBufferSize.y;
-    float barW = 20;
-    float barH = engine.backBufferSize.y;
-    
-    editor.point += 0.0167f * editor.pointVel;
-    
-    editor.pointVel *= 0.8f;
-    
-    if (board->tree.root)
+    while (xd11.running)
     {
+        xrender2d_pre_update();
         
-        // int treeDepth = 2;
-        int treeDepth = move_tree_height(board->tree.root, 0);
-        float treeH = treeDepth * 50.0f + 40;
+        // Get the currently selected board
+        Board *board = editor.currentBoard;
         
-        if (treeH > engine.backBufferSize.y)
+        // Handle the user input
+        input();
+        
+        float treeOriginY = 0;
+        
+        float barX = 0;
+        float barY = xd11.back_buffer_size.y;
+        float barW = 20;
+        float barH = xd11.back_buffer_size.y;
+        
+        editor.point += 0.0167f * editor.pointVel;
+        
+        editor.pointVel *= 0.8f;
+        
+        if (board->tree.root)
         {
-            float thumbW = barW;
-            float thumbH = (barH * (barH / treeH));
             
-            float thumbX = barX;
-            // float thumbY = barY - thumbHeight;
+            // int treeDepth = 2;
+            int treeDepth = move_tree_height(board->tree.root, 0);
+            float treeH = (treeDepth * .5f*editor.stoneBlack.size.y +
+                           editor.stoneBlack.size.y);
             
-            
-            float thumbY = point_to_thumb_y(barH, thumbH, editor.point);
-            
-            draw_rect(editor.layer1, editor.white, 
-                      v2(thumbX, thumbY),
-                      v2(20, thumbH), rgba(1,0,0,1), 1);
-            
-            
-            float scrollAcc = 2.5f;
-            if (engine.mouse.wheel > 0)
+            if (treeH > xd11.back_buffer_size.y)
             {
-                if (editor.point < 1.0f)
+                float thumbW = barW;
+                float thumbH = (barH * (barH / treeH));
+                
+                float thumbX = barX;
+                // float thumbY = barY - thumbHeight;
+                
+                
+                float thumbY = point_to_thumb_y(barH, thumbH, editor.point);
+                
+                draw_rect(&editor.layer1, 
+                          (v2f){thumbX, thumbY},
+                          (v2f){20, thumbH},
+                          (v4f){0.2f,0.2f,0.2f,0.8f});
+                
+                float scrollAcc = 2.5f;
+                
+                if ((xwin.mouse.wheel < 0 && editor.point > 0) || 
+                    (xwin.mouse.wheel > 0 && editor.point < 1))
                 {
-                    editor.pointVel += scrollAcc * engine.mouse.wheel;
+                    editor.pointVel += scrollAcc * xwin.mouse.wheel;
                 }
             }
-            else if (engine.mouse.wheel < 0)
+            
+            treeOriginY = point_to_content_y(treeH, barH, editor.point);
+            
+            editor.contentH = treeH;
+        }
+        
+        editor.contentY = treeOriginY;
+        
+        
+        if (editor.point < 0)
+        {
+            editor.pointVel += -2*editor.point;
+            editor.pointVel *= 0.4f;
+        }
+        
+        if (editor.point > 1)
+        {
+            editor.pointVel += -0.2f*powf(editor.point, 20);
+            editor.pointVel *= 0.4f;
+        }
+        
+        draw_text(&editor.layer1, (v2f){200,xd11.back_buffer_size.y - 50}, 
+                  (v4f){0,0,0,1}, &editor.font32,
+                  L"Nymira Go/Baduk/Weiqi editor");
+        
+        
+        // Draw tree diagram
+        move_tree_draw_diagram(&board->tree, board->tree.root, 
+                               (v2f){40, treeOriginY});
+        
+        // Draw the board
+        board_draw(board);
+        
+        v2f stoneSize = board_get_stone_size(board);
+        v2f boardSize = board_size(board);
+        v2f origin = board_origin(board, boardSize);
+        
+        for (s32 j = 0; j < editor.libGroupIndex; j++)
+        {
+            LibertyGroup *group = editor.libGroups + j;
+            if (group->count > 0)
             {
-                if (editor.point > 0.0f)
+                for (s32 i = 0; i < group->count; i++)
                 {
-                    editor.pointVel += scrollAcc * engine.mouse.wheel;
+                    Stone liberty = group->array[i];
+                    
+                    v2f libSize = mul2f(.3f, stoneSize);
+                    
+                    v2f pos = board_stone_pos(board, liberty.x, liberty.y);
+                    draw_rect(&editor.layer2, sub2f(add2f(origin, pos), mul2f(.5f, libSize)),
+                              libSize, (v4f){1,0,0,0.5f});
                 }
             }
         }
         
-        treeOriginY = point_to_content_y(treeH, barH, editor.point);
+        XRenderBatch batches[2] = {editor.layer1, editor.layer2};
+        xrender2d_post_update(batches, narray(batches));
+        
+        /* Reset Batches */
+        xrender2d_reset_batch(&editor.layer1);
+        xrender2d_reset_batch(&editor.layer2);
     }
-    
-    if (editor.point < 0)
-    {
-        editor.point = 0;
-        editor.pointVel = 0;
-    }
-    
-    if (editor.point > 1)
-    {
-        editor.point = 1;
-        editor.pointVel = 0;
-    }
-    
-    
-    // Draw tree diagram
-    move_tree_draw_diagram(&board->tree, board->tree.root, 
-                           v2(40, treeOriginY));
-    
-    // Draw the board
-    board_draw(board);
-    
-    Vector2 stoneSize = board_get_stone_size(board);
-    Vector2 boardSize = board_size(board);
-    Vector2 origin = board_origin(board, boardSize);
-    
-    for (s32 j = 0; j < editor.libGroupIndex; j++)
-    {
-        LibertyGroup *group = editor.libGroups + j;
-        if (group->count > 0)
+}
+
+LRESULT window_proc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    LRESULT result = 0;
+    switch (message) {
+        XWNDPROC;
+        
+        default:
         {
-            for (s32 i = 0; i < group->count; i++)
-            {
-                Stone liberty = group->array[i];
-                
-                Vector2 libSize = v2_mul(.3f, stoneSize);
-                
-                Vector2 pos = board_stone_pos(board, liberty.x, liberty.y);
-                draw_rect(editor.layer2, editor.white,
-                          v2_sub(v2_add(origin, pos), v2_mul(.5f, libSize)),
-                          libSize, rgba(1,0,0,0.5f), 0);
-            }
-        }
+            result = DefWindowProcW(window, message, wParam, lParam);
+        } break;
     }
+    return result;
 }

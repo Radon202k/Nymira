@@ -12,8 +12,6 @@ move_compare(Move a, Move b)
     return false;
 }
 
-#define maxf(a,b) ((a)>=(b))?(a):(b)
-
 function s32
 move_tree_height(MoveNode *node, s32 height)
 {
@@ -170,29 +168,33 @@ move_place(MoveTree *tree, u32 x, u32 y, u32 player)
 
 // Depth-first traversal to draw the tree
 function void
-move_tree_draw_diagram(MoveTree *tree, MoveNode *root, Vector2 origin)
+move_tree_draw_diagram(MoveTree *tree, MoveNode *root, v2f origin)
 {
     if (root == 0) return;
     
-    Color color = rgba(.7f,.1f,.7f,0.2f);
+    v4f color = {1,1,1,0.4f};
     if (tree->point == root)
     {
-        color = rgba(0,1,0,0.7f);
+        color = (v4f){1,1,1,1};
+        editor.nodeY = origin.y;
     }
     
-    // Draw it
-    draw_rect(editor.layer1, editor.white, 
-              v2_add(origin, v2(0,-40)), v2(40,40),
-              color, 0);
+    float stoneHeight = editor.stoneBlack.size.y;
     
+    // Draw it
+    draw_sprite(&editor.layer1, origin, (v2f){.5f,.5f}, color, 
+                root->data.player == 1 ? editor.stoneBlack : editor.stoneWhite);
+    
+#if 0
     Vector2i value = {root->data.x, root->data.y};
-    draw_label_v2i(editor.layer2, editor.font, value, 
+    draw_label_v2i(editor.layer2, &editor.font32, value, 
                    v2(origin.x, origin.y), 
-                   10, rgba(1,0,0,0.5f), 1, false);
+                   10, rgba(1,1,1,0.5f), 1, false);
+#endif
     
     move_tree_draw_diagram(tree, root->firstChild, 
-                           v2(origin.x,origin.y-50));
+                           (v2f){origin.x,origin.y-.5f*stoneHeight});
     
     move_tree_draw_diagram(tree, root->rightSibling, 
-                           v2(origin.x+50,origin.y));
+                           (v2f){origin.x+.5f*stoneHeight,origin.y});
 }

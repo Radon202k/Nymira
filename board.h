@@ -1,12 +1,12 @@
 #pragma once
 
-function Vector2
+function v2f
 board_get_stone_size(Board *board)
 {
-    return v2(board->lineSpace + 10, board->lineSpace + 10);
+    return (v2f){board->lineSpace + 10, board->lineSpace + 10};
 }
 
-function Vector2
+function v2f
 board_stone_pos(Board *board, s32 x, s32 y)
 {
     assert(x >= 0 && x < board->lineCount);
@@ -14,21 +14,21 @@ board_stone_pos(Board *board, s32 x, s32 y)
     
     float posX = x*board->lineThickness + x*board->lineSpace;
     float posY = y*board->lineThickness + y*board->lineSpace;
-    return v2(posX, posY);
+    return (v2f){posX, posY};
 }
 
-function Vector2
-board_origin(Board *board, Vector2 boardSize)
+function v2f
+board_origin(Board *board, v2f boardSize)
 {
-    float left = 0.5f*engine.backBufferSize.x - 0.5f*boardSize.x;
-    float bottom = 0.5f*engine.backBufferSize.y - 0.5f*boardSize.y;
-    return v2(left, bottom);
+    float left = 0.5f*xd11.back_buffer_size.x - 0.5f*boardSize.x;
+    float bottom = 0.5f*xd11.back_buffer_size.y - 0.5f*boardSize.y;
+    return (v2f){left, bottom};
 }
 
-function Vector2
+function v2f
 board_size(Board *board)
 {
-    Vector2 result = 
+    v2f result = 
     {
         (board->lineCount-1)*board->lineSpace + board->lineCount*board->lineThickness,
         (board->lineCount-1)*board->lineSpace + board->lineCount*board->lineThickness,
@@ -37,11 +37,11 @@ board_size(Board *board)
 }
 
 function bool
-board_closest_pos(Vector2 origin, s32 *x, s32 *y)
+board_closest_pos(v2f origin, s32 *x, s32 *y)
 {
     // Search to see if mouse is close to a valid board position
     float minLength = 1000;
-    Vector2 closesPos = v2(0,0);
+    v2f closesPos = {0,0};
     u32 boardX = 0;
     u32 boardY = 0;
     
@@ -54,13 +54,13 @@ board_closest_pos(Vector2 origin, s32 *x, s32 *y)
         for (s32 i = 0; i < board->lineCount; i++)
         {
             // Get absolute position for cell
-            Vector2 absPos = v2_add(origin, board_stone_pos(board, i, j));
+            v2f absPos = add2f(origin, board_stone_pos(board, i, j));
             
             // Get difference from mouse to it
-            Vector2 diff = v2_sub(engine.mouse.pos, absPos);
+            v2f diff = sub2f(xwin.mouse.pos, absPos);
             
             // Get length of that difference
-            float length = v2_length(diff);
+            float length = len2f(diff);
             
             // If it is smaller than the current min
             if (length < minLength)
@@ -122,29 +122,27 @@ board_get_stones_from_move_list(Board *board,
 function void 
 board_draw_lines(Board *board)
 {
-    Vector2 boardSize = board_size(board);
-    Vector2 origin = board_origin(board, boardSize);
+    v2f boardSize = board_size(board);
+    v2f origin = board_origin(board, boardSize);
     
     // Draw board's vertical lines
     for (s32 i = 0; i < board->lineCount; i++)
     {
-        Vector2 pos = board_stone_pos(board, i, 0);
-        draw_rect(editor.layer1, editor.white, 
-                  v2(origin.x + pos.x, origin.y + pos.y),
-                  v2(1,boardSize.y),
-                  rgba(0,0,0,1),
-                  0);
+        v2f pos = board_stone_pos(board, i, 0);
+        draw_rect(&editor.layer1, 
+                  (v2f){origin.x + pos.x, origin.y + pos.y},
+                  (v2f){1,boardSize.y},
+                  (v4f){0,0,0,1});
     }
     
     // Draw board's horizontal lines
     for (s32 j = 0; j < board->lineCount; j++)
     {
-        Vector2 pos = board_stone_pos(board, 0, j);
-        draw_rect(editor.layer1, editor.white, 
-                  v2(origin.x + pos.x, origin.y + pos.y),
-                  v2(boardSize.x,1),
-                  rgba(0,0,0,1),
-                  0);
+        v2f pos = board_stone_pos(board, 0, j);
+        draw_rect(&editor.layer1, 
+                  (v2f){origin.x + pos.x, origin.y + pos.y},
+                  (v2f){boardSize.x,1},
+                  (v4f){0,0,0,1});
     }
 }
 
@@ -192,7 +190,7 @@ board_get_stones(Board *board, Stone *destStones)
     u32 maxStoneCount = board->lineCount*board->lineCount;
     
     // Allocate array of Moves and clear it to zero
-    Move *pathToPoint = alloc_array(maxStoneCount, Move);
+    Move *pathToPoint = xnalloc(maxStoneCount, Move);
     
     // Initialize the moves with their X,Y positions
     for (s32 x = 0; x < board->lineCount; x++)
@@ -217,13 +215,13 @@ board_get_stones(Board *board, Stone *destStones)
                                     pathToPoint, pathToPointCount);
     
     // Free path to point array
-    free(pathToPoint);
+    xfree(pathToPoint);
 }
 
 function void
 move_capture(Board *board, Stone stone)
 {
-    Capture *capture = alloc_type(Capture);
+    Capture *capture = xalloc(sizeof *capture);
     capture->x = stone.x;
     capture->y = stone.y;
     capture->nextChainEntry = board->tree.point->data.firstCapture;
@@ -246,14 +244,14 @@ board_get_stone(Board *board, Stone *stones, s32 x, s32 y)
 function void
 board_draw_stones(Board *board)
 {
-    Vector2 boardSize = board_size(board);
-    Vector2 origin = board_origin(board, boardSize);
-    Vector2 stoneSize = board_get_stone_size(board);
+    v2f boardSize = board_size(board);
+    v2f origin = board_origin(board, boardSize);
+    v2f stoneSize = board_get_stone_size(board);
     
     u32 maxStoneCount = board->lineCount*board->lineCount;
     
     // Allocate array of Stones and clear it to zero
-    Stone *stones = alloc_array(maxStoneCount, Stone);
+    Stone *stones = xnalloc(maxStoneCount, Stone);
     
     // Get stones from board
     board_get_stones(board, stones);
@@ -266,39 +264,37 @@ board_draw_stones(Board *board)
             Stone *stone = board_get_stone(board, stones, x, y);
             if (stone->player > 0)
             {
-                Vector2 pos = v2_add(origin, board_stone_pos(board, x, y));
-                draw_rect(editor.layer2, 
-                          (stone->player == 1) ? editor.stoneBlack : editor.stoneWhite, 
-                          v2_sub(pos, v2_mul(.5f, stoneSize)),
-                          stoneSize,
-                          rgba(1,1,1,1),
-                          0);
+                v2f pos = add2f(origin, board_stone_pos(board, x, y));
+                draw_sprite(&editor.layer2, 
+                            sub2f(pos, mul2f(.5f, stoneSize)),
+                            stoneSize,
+                            (v4f){1,1,1,1},
+                            (stone->player == 1) ? editor.stoneBlack : editor.stoneWhite);
             }
         }
     }
     
     // Free stones array
-    free(stones);
+    xfree(stones);
 }
 
 function void
 board_draw_closest_pos(Board *board)
 {
-    Vector2 boardSize = board_size(board);
-    Vector2 origin = board_origin(board, boardSize);
-    Vector2 stoneSize = board_get_stone_size(board);
+    v2f boardSize = board_size(board);
+    v2f origin = board_origin(board, boardSize);
+    v2f stoneSize = board_get_stone_size(board);
     
     if (editor.closestPosActive)
     {
-        Vector2 closestPos = board_stone_pos(board, 
-                                             editor.closestBoardPoint.x,
-                                             editor.closestBoardPoint.y);
+        v2f closestPos = board_stone_pos(board, 
+                                         editor.closestBoardPoint.x,
+                                         editor.closestBoardPoint.y);
         
-        draw_rect(editor.layer2, editor.white, 
-                  v2_add(origin, v2_sub(closestPos, v2_mul(.2f, stoneSize))),
-                  v2_mul(.4f, stoneSize),
-                  !board->currentPlayer ? rgba(0,0,0,1) : rgba(1,1,1,1),
-                  0);
+        draw_rect(&editor.layer2,
+                  add2f(origin, sub2f(closestPos, mul2f(.2f, stoneSize))),
+                  mul2f(.4f, stoneSize),
+                  !board->currentPlayer ? (v4f){0,0,0,1} : (v4f){1,1,1,1});
     }
 }
 
